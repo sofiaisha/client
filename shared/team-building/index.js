@@ -68,6 +68,7 @@ const TeamBuilding = (props: Props) => (
       <Kb.List
         items={props.searchResults}
         selectedIndex={props.highlightedIndex || 0}
+        style={styles.list}
         renderItem={(index, result) => (
           <UserResult
             key={result.userId}
@@ -95,13 +96,15 @@ const styles = Styles.styleSheetCreate({
       paddingLeft: Styles.globalMargins.small,
       paddingRight: Styles.globalMargins.small,
       paddingTop: Styles.globalMargins.small,
-      paddingBottom: Styles.globalMargins.small,
     },
     isElectron: {
       width: 470,
       height: 434,
     },
   }),
+  list: {
+    paddingBottom: Styles.globalMargins.small,
+  },
 })
 
 export default TeamBuilding

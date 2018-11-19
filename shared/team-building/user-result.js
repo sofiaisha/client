@@ -49,6 +49,7 @@ const Row = (props: Props) => (
       hoverRowinTeam: props.inTeam,
     })}
     direction="horizontal"
+    fullWidth={true}
     centerChildren={true}
     style={Styles.collapseStyles([styles.rowContainer, props.highlight ? styles.highlighted : null])}
   >
@@ -146,7 +147,6 @@ const styles = Styles.styleSheetCreate({
   rowContainer: Styles.platformStyles({
     isElectron: {
       height: 50,
-      width: 420,
     },
     common: {
       paddingLeft: Styles.globalMargins.tiny,

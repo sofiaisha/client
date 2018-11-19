@@ -31,6 +31,7 @@ const handleKeyDown = (e: any, key: string, props: Props) => {
 const Input = (props: Props) => (
   <Kb.Box2 direction="horizontal" style={styles.container}>
     <Kb.PlainInput
+      autoFocus={true}
       style={styles.input}
       placeholder={'Find people by name, email, or phone'}
       onChangeText={props.onChangeText}
