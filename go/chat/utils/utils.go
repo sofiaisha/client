@@ -1660,3 +1660,10 @@ func SetUnfurl(mvalid *chat1.MessageUnboxedValid, unfurlMessageID chat1.MessageI
 	}
 	mvalid.Unfurls[unfurlMessageID] = unfurl
 }
+
+func IsPermanentErr(err error) bool {
+	if uberr, ok := err.(types.UnboxingError); ok {
+		return uberr.IsPermanent()
+	}
+	return err != nil
+}
