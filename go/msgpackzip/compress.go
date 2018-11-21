@@ -36,20 +36,22 @@ func (c *compressor) collectFrequencies() (ret map[interface{}]int, err error) {
 
 	ret = make(map[interface{}]int)
 	f := func(d decodeStack) (decodeStack, error) {
-		d.hooks.stringHook = func(l msgpackInt, s string) error {
-			ret[s]++
-			return nil
-		}
-		d.hooks.intHook = func(l msgpackInt) error {
-			i, err := l.toInt64()
-			if err != nil {
-				return err
-			}
-			ret[i]++
-			return nil
-		}
-		d.hooks.fallthroughHook = func(i interface{}, s string) error {
-			return fmt.Errorf("bad map key (type %T)", i)
+		d.hooks = msgpackDecoderHooks{
+			stringHook: func(l msgpackInt, s string) error {
+				ret[s]++
+				return nil
+			},
+			intHook: func(l msgpackInt) error {
+				i, err := l.toInt64()
+				if err != nil {
+					return err
+				}
+				ret[i]++
+				return nil
+			},
+			fallthroughHook: func(i interface{}, s string) error {
+				return fmt.Errorf("bad map key (type %T)", i)
+			},
 		}
 		return d, nil
 	}
