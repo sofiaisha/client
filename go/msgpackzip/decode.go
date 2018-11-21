@@ -3,6 +3,7 @@ package msgpackzip
 import (
 	"errors"
 	"io"
+	"math"
 )
 
 var ErrExtUnsupported = errors.New("ext types not supported")
@@ -10,6 +11,7 @@ var ErrMaxDepth = errors.New("input exceeded maximum allowed depth")
 var ErrContainerTooBig = errors.New("container allocation is too big")
 var ErrStringTooBig = errors.New("string allocation is too big")
 var ErrLenTooBig = errors.New("Lenghts bigger than 0x8000000 are too big")
+var ErrIntTooBig = errors.New("Cannot handle ints largers than int64 max")
 
 type count uint64
 
@@ -50,12 +52,22 @@ func (i msgpackInt) toLen() (int, error) {
 	return int(i.val), nil
 }
 
+func (i msgpackInt) toInt64() (int64, error) {
+	if i.typ == intTypeUint64 {
+		if i.uval >= uint64(math.MaxInt64) {
+			return 0, ErrIntTooBig
+		}
+		return int64(i.uval), nil
+	}
+	return i.val, nil
+}
+
 type msgpackDecoderHooks struct {
-	mapKeyHook      func(interface{}) error
-	mapValueHook    func(interface{}) error
-	mapStartHook    func(i msgpackInt) error
-	arrayStartHook  func(i msgpackInt) error
-	arrayValueHook  func(i interface{}) error
+	mapKeyHook      func(d decodeStack) (decodeStack, error)
+	mapValueHook    func(d decodeStack) (decodeStack, error)
+	mapStartHook    func(d decodeStack, i msgpackInt) (decodeStack, error)
+	arrayStartHook  func(d decodeStack, i msgpackInt) (decodeStack, error)
+	arrayValueHook  func(d decodeStack, i interface{}) (decodeStack, error)
 	stringHook      func(l msgpackInt, s string) error
 	rawHook         func(l msgpackInt, b []byte) error
 	nilHook         func() error
@@ -77,7 +89,7 @@ func readByte(r io.Reader) (byte, error) {
 
 type decodeStack struct {
 	depth int
-	hooks *msgpackDecoderHooks
+	hooks msgpackDecoderHooks
 }
 
 func (d decodeStack) descend() decodeStack {
@@ -86,30 +98,24 @@ func (d decodeStack) descend() decodeStack {
 }
 
 type msgpackDecoder struct {
-	hooks *msgpackDecoderHooks
-	r     io.Reader
+	r io.Reader
 }
 
-func newMsgpackDecoder(r io.Reader, hooks *msgpackDecoderHooks) *msgpackDecoder {
-	return &msgpackDecoder{hooks: hooks, r: r}
+func newMsgpackDecoder(r io.Reader) *msgpackDecoder {
+	return &msgpackDecoder{r: r}
 }
 
-func (m *msgpackDecoder) run() error {
-	var d decodeStack
+func (m *msgpackDecoder) run(h msgpackDecoderHooks) error {
+	d := decodeStack{hooks: h}
 	return m.decode(d)
 }
 
-func (m *msgpackDecoder) getHooks(s decodeStack) *msgpackDecoderHooks {
-	return m.hooks
-}
-
 func (m *msgpackDecoder) produceInt(s decodeStack, i msgpackInt) (err error) {
-	hooks := m.getHooks(s)
-	if hooks.intHook != nil {
-		return hooks.intHook(i)
+	if s.hooks.intHook != nil {
+		return s.hooks.intHook(i)
 	}
-	if hooks.fallthroughHook != nil {
-		return hooks.fallthroughHook(i, "int")
+	if s.hooks.fallthroughHook != nil {
+		return s.hooks.fallthroughHook(i, "int")
 	}
 	return nil
 }
@@ -131,12 +137,11 @@ func (m *msgpackDecoder) decodeString(s decodeStack, i msgpackInt) (err error) {
 }
 
 func (m *msgpackDecoder) produceString(s decodeStack, i msgpackInt, str string) (err error) {
-	hooks := m.getHooks(s)
-	if hooks.stringHook != nil {
-		return hooks.stringHook(i, str)
+	if s.hooks.stringHook != nil {
+		return s.hooks.stringHook(i, str)
 	}
-	if hooks.fallthroughHook != nil {
-		return hooks.fallthroughHook(str, "string")
+	if s.hooks.fallthroughHook != nil {
+		return s.hooks.fallthroughHook(str, "string")
 	}
 	return nil
 }
