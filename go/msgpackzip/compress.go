@@ -35,28 +35,29 @@ func (c *compressor) run() (output []byte, err error) {
 func (c *compressor) collectFrequencies() (ret map[interface{}]int, err error) {
 
 	ret = make(map[interface{}]int)
-	f := func(d decodeStack) (decodeStack, error) {
-		d.hooks = msgpackDecoderHooks{
-			stringHook: func(l msgpackInt, s string) error {
-				ret[s]++
-				return nil
-			},
-			intHook: func(l msgpackInt) error {
-				i, err := l.toInt64()
-				if err != nil {
-					return err
-				}
-				ret[i]++
-				return nil
-			},
-			fallthroughHook: func(i interface{}, s string) error {
-				return fmt.Errorf("bad map key (type %T)", i)
-			},
-		}
-		return d, nil
+	hooks := msgpackDecoderHooks{
+		mapKeyHook: func(d decodeStack) (decodeStack, error) {
+			d.hooks = msgpackDecoderHooks{
+				stringHook: func(l msgpackInt, s string) error {
+					ret[s]++
+					return nil
+				},
+				intHook: func(l msgpackInt) error {
+					i, err := l.toInt64()
+					if err != nil {
+						return err
+					}
+					ret[i]++
+					return nil
+				},
+				fallthroughHook: func(i interface{}, s string) error {
+					return fmt.Errorf("bad map key (type %T)", i)
+				},
+			}
+			return d, nil
+		},
 	}
-
-	err = newMsgpackDecoder(c.input).run(msgpackDecoderHooks{mapKeyHook: f})
+	err = newMsgpackDecoder(c.input).run(hooks)
 	if err != nil {
 		return nil, err
 	}
